@@ -1,0 +1,17 @@
+.gradle/
+build/
+out/
+.idea/
+*.iml
+
+.env
+.env.*
+!.envrc
+
+docs/
+.codex-skills/
+.claude/skills/
+
+logs/
+tmp/
+

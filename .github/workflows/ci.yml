@@ -1,0 +1,131 @@
+name: ci
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop, main]
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  AWS_REGION: us-east-1
+
+jobs:
+  validate-version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      deploy_environment: ${{ steps.policy.outputs.deploy_environment }}
+    steps:
+      - uses: actions/checkout@v5
+      - id: version
+        shell: bash
+        run: |
+          VERSION="$(grep -E '^version = ' build.gradle.kts | sed -E 's/version = "([^"]+)"/\1/')"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+      - id: policy
+        shell: bash
+        run: |
+          TARGET="${{ github.base_ref || github.ref_name }}"
+          VERSION="${{ steps.version.outputs.version }}"
+          if [[ "$TARGET" == "develop" ]]; then
+            [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+-[0-9]+-SNAPSHOT$ ]] || {
+              echo "develop requires x.y.z-n-SNAPSHOT, got $VERSION"; exit 1;
+            }
+            echo "deploy_environment=dev" >> "$GITHUB_OUTPUT"
+          elif [[ "$TARGET" == "main" ]]; then
+            [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || {
+              echo "main requires x.y.z, got $VERSION"; exit 1;
+            }
+            echo "deploy_environment=prod" >> "$GITHUB_OUTPUT"
+          else
+            echo "deploy_environment=none" >> "$GITHUB_OUTPUT"
+          fi
+
+  build-test:
+    runs-on: ubuntu-latest
+    needs: validate-version
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_DB: aisly
+          POSTGRES_USER: aisly
+          POSTGRES_PASSWORD: aisly
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U aisly -d aisly"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: gradle
+      - run: ./gradlew --no-daemon clean test bootJar
+        env:
+          DB_URL: jdbc:postgresql://localhost:5432/aisly
+          DB_USER: aisly
+          DB_PASSWORD: aisly
+          AUTH_ISSUER_URI: https://issuer.invalid
+          AUTH_AUDIENCE: aisly-api
+
+  docker-build:
+    runs-on: ubuntu-latest
+    needs: build-test
+    steps:
+      - uses: actions/checkout@v5
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          push: false
+          tags: aisly-backend:${{ needs.validate-version.outputs.version }}
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: [validate-version, build-test]
+    if: github.event_name == 'pull_request'
+    environment: ${{ needs.validate-version.outputs.deploy_environment }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - uses: aws-actions/amazon-ecr-login@v3
+        id: ecr
+      - name: Build and push image
+        shell: bash
+        run: |
+          IMAGE_URI="${{ steps.ecr.outputs.registry }}/${{ secrets.ECR_REPOSITORY }}:${{ needs.validate-version.outputs.version }}"
+          docker build -t "$IMAGE_URI" .
+          docker push "$IMAGE_URI"
+          echo "IMAGE_URI=$IMAGE_URI" >> "$GITHUB_ENV"
+      - name: Deploy Elastic Beanstalk application version
+        shell: bash
+        run: |
+          envsubst < .elasticbeanstalk/Dockerrun.aws.json.template > Dockerrun.aws.json
+          zip deploy.zip Dockerrun.aws.json
+          VERSION="${{ needs.validate-version.outputs.version }}-${{ github.run_id }}"
+          aws s3 cp deploy.zip "s3://${{ secrets.EB_DEPLOY_BUCKET }}/aisly-backend/$VERSION.zip"
+          aws elasticbeanstalk create-application-version \
+            --application-name "${{ secrets.EB_APPLICATION_NAME }}" \
+            --version-label "$VERSION" \
+            --source-bundle S3Bucket="${{ secrets.EB_DEPLOY_BUCKET }}",S3Key="aisly-backend/$VERSION.zip"
+          if [[ "${{ needs.validate-version.outputs.deploy_environment }}" == "prod" ]]; then
+            ENV_NAME="${{ secrets.EB_ENVIRONMENT_NAME_PROD }}"
+          else
+            ENV_NAME="${{ secrets.EB_ENVIRONMENT_NAME_DEV }}"
+          fi
+          aws elasticbeanstalk update-environment \
+            --environment-name "$ENV_NAME" \
+            --version-label "$VERSION"
+

@@ -1,0 +1,23 @@
+### Health
+GET http://localhost:8081/healthcheck
+
+### Me
+GET http://localhost:8081/api/v1/me
+Authorization: Bearer {{token}}
+
+### Create List
+POST http://localhost:8081/api/v1/lists
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Compra do mês",
+  "budget": 612.00,
+  "iconName": "cart",
+  "colorHex": 2147750
+}
+
+### Archive user data from AuthServer
+POST http://localhost:8081/internal/v1/users/{{subject}}/archive-data
+X-Aisly-Internal-Secret: {{internalSecret}}
+

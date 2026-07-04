@@ -1,0 +1,11 @@
+spring:
+  jpa:
+    show-sql: false
+  web:
+    resources:
+      add-mappings: true
+
+logging:
+  level:
+    com.aisly.backend: DEBUG
+

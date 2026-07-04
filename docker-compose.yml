@@ -1,0 +1,35 @@
+services:
+  postgres:
+    image: postgres:18-alpine
+    container_name: aisly-postgres
+    environment:
+      POSTGRES_DB: ${DB_NAME:-aisly}
+      POSTGRES_USER: ${DB_USER:-aisly}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-aisly}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - aisly-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-aisly} -d ${DB_NAME:-aisly}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+    container_name: aisly-api
+    env_file:
+      - .env
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/${DB_NAME:-aisly}
+    ports:
+      - "${SERVER_PORT:-8081}:8081"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  aisly-postgres-data:
+
