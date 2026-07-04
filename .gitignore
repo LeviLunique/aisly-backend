@@ -4,6 +4,12 @@ out/
 .idea/
 *.iml
 
+**/.terraform/
+**/.terraform.lock.hcl
+**/*.tfstate
+**/*.tfstate.*
+**/tfplan
+
 .env
 .env.*
 !.envrc
@@ -14,4 +20,3 @@ docs/
 
 logs/
 tmp/
-

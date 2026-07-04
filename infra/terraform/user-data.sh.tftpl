@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+dnf update -y
+dnf install -y docker awscli
+systemctl enable --now docker
+
+mkdir -p /opt/aisly
+aws s3 cp "s3://${artifact_bucket}/${artifact_key}" /opt/aisly/aisly-backend.jar --region "${aws_region}"
+
+cat >/opt/aisly/docker-compose.yml <<'YAML'
+services:
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${db_name}
+      POSTGRES_USER: ${db_username}
+      POSTGRES_PASSWORD: ${db_password}
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    networks:
+      - aisly
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${db_username} -d ${db_name}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  api:
+    image: eclipse-temurin:25-jre-alpine
+    restart: unless-stopped
+    command: ["java", "-jar", "/app/aisly-backend.jar"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SERVER_PORT: "8081"
+      DB_URL: jdbc:postgresql://postgres:5432/${db_name}
+      DB_USER: ${db_username}
+      DB_PASSWORD: ${db_password}
+      AUTH_ISSUER_URI: ${auth_issuer_uri}
+      AUTH_AUDIENCE: ${auth_audience}
+      AISLY_INTERNAL_WEBHOOK_SECRET: ${internal_webhook_secret}
+    ports:
+      - "8081:8081"
+    volumes:
+      - /opt/aisly/aisly-backend.jar:/app/aisly-backend.jar:ro
+    networks:
+      - aisly
+
+volumes:
+  postgres-data:
+
+networks:
+  aisly:
+YAML
+
+curl -fsSL "https://github.com/docker/compose/releases/download/v2.40.3/docker-compose-linux-aarch64" -o /usr/local/bin/docker-compose
+chmod +x /usr/local/bin/docker-compose
+
+cat >/etc/systemd/system/aisly-compose.service <<'UNIT'
+[Unit]
+Description=Aisly backend Docker Compose stack
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/aisly
+ExecStart=/usr/local/bin/docker-compose up -d
+ExecStop=/usr/local/bin/docker-compose down
+TimeoutStartSec=0
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+
+systemctl daemon-reload
+systemctl enable --now aisly-compose.service

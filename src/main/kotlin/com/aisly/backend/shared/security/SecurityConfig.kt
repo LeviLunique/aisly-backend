@@ -10,7 +10,6 @@ import org.springframework.security.oauth2.core.OAuth2TokenValidator
 import org.springframework.security.oauth2.core.OAuth2TokenValidatorResult
 import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.security.oauth2.jwt.JwtDecoder
-import org.springframework.security.oauth2.jwt.JwtDecoders
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder
 import org.springframework.security.oauth2.jwt.JwtValidators
 import org.springframework.security.web.SecurityFilterChain
@@ -42,11 +41,10 @@ class SecurityConfig(
 
     @Bean
     fun jwtDecoder(): JwtDecoder {
-        val decoder = if (securityProperties.jwkSetUri.isNullOrBlank()) {
-            JwtDecoders.fromIssuerLocation(securityProperties.issuerUri) as NimbusJwtDecoder
-        } else {
-            NimbusJwtDecoder.withJwkSetUri(securityProperties.jwkSetUri).build()
-        }
+        val jwkSetUri = securityProperties.jwkSetUri
+            ?.takeUnless { it.isBlank() }
+            ?: "${securityProperties.issuerUri.trimEnd('/')}/.well-known/jwks.json"
+        val decoder = NimbusJwtDecoder.withJwkSetUri(jwkSetUri).build()
         decoder.setJwtValidator(
             DelegatingOAuth2TokenValidator(
                 JwtValidators.createDefaultWithIssuer(securityProperties.issuerUri),

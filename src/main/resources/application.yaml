@@ -21,6 +21,11 @@ spring:
         jwt:
           issuer-uri: ${AUTH_ISSUER_URI:http://localhost:8080}
           jwk-set-uri: ${AUTH_JWK_SET_URI:}
+  modulith:
+    events:
+      jdbc:
+        schema-initialization:
+          enabled: false
 
 server:
   port: ${SERVER_PORT:8081}
