@@ -12,7 +12,7 @@ compras — este servidor sincroniza 100% das funcionalidades do app.
 
 ## Vídeo
 
-📹 **[Link do vídeo de demonstração](COLOQUE_O_LINK_AQUI)**
+**[Link do vídeo de demonstração](https://youtu.be/qiZQjgXr0U8)**
 
 ---
 
