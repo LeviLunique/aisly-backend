@@ -30,7 +30,12 @@ variable "db_username" {
 
 variable "auth_issuer_uri" {
   type    = string
-  default = "https://auth-dev.example.invalid"
+  default = ""
+}
+
+variable "auth_jwk_set_uri" {
+  type    = string
+  default = "http://auth:8080/.well-known/jwks.json"
 }
 
 variable "auth_audience" {
@@ -46,6 +51,16 @@ variable "application_jar_path" {
 variable "app_version_label" {
   type    = string
   default = "0.1.0-1-SNAPSHOT"
+}
+
+variable "authserver_jar_path" {
+  type    = string
+  default = "../../../backend-dev/build/libs/authserver-0.0.1-SNAPSHOT.jar"
+}
+
+variable "authserver_version_label" {
+  type    = string
+  default = "0.0.1-SNAPSHOT"
 }
 
 variable "app_instance_type" {

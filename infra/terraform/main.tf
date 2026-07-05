@@ -133,6 +133,14 @@ resource "aws_security_group" "app" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+  ingress {
+    description = "Aisly AuthServer"
+    from_port   = 8080
+    to_port     = 8080
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
   egress {
     description = "All outbound"
     from_port   = 0
@@ -205,6 +213,13 @@ resource "aws_s3_object" "application_jar" {
   source_hash = filemd5(var.application_jar_path)
 }
 
+resource "aws_s3_object" "authserver_jar" {
+  bucket      = aws_s3_bucket.deploy.id
+  key         = "artifacts/authserver/${var.authserver_version_label}/authserver.jar"
+  source      = var.authserver_jar_path
+  source_hash = filemd5(var.authserver_jar_path)
+}
+
 resource "aws_instance" "app" {
   ami                         = data.aws_ami.amazon_linux_2023_arm64.id
   instance_type               = var.app_instance_type
@@ -212,7 +227,7 @@ resource "aws_instance" "app" {
   vpc_security_group_ids      = [aws_security_group.app.id]
   iam_instance_profile        = aws_iam_instance_profile.app.name
   associate_public_ip_address = true
-  user_data_replace_on_change = true
+  user_data_replace_on_change = false
 
   root_block_device {
     volume_size           = 16
@@ -225,10 +240,12 @@ resource "aws_instance" "app" {
     aws_region              = var.aws_region
     artifact_bucket         = aws_s3_bucket.deploy.id
     artifact_key            = aws_s3_object.application_jar.key
+    auth_artifact_key       = aws_s3_object.authserver_jar.key
     db_name                 = "aisly"
     db_username             = var.db_username
     db_password             = random_password.db_password.result
     auth_issuer_uri         = var.auth_issuer_uri
+    auth_jwk_set_uri        = var.auth_jwk_set_uri
     auth_audience           = var.auth_audience
     internal_webhook_secret = random_password.internal_webhook_secret.result
   })
@@ -252,6 +269,10 @@ output "account_deleted_queue_url" {
 
 output "app_base_url" {
   value = "http://${aws_instance.app.public_dns}:8081"
+}
+
+output "auth_base_url" {
+  value = "http://${aws_instance.app.public_dns}:8080"
 }
 
 output "app_public_ip" {
