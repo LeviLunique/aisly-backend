@@ -1,5 +1,10 @@
 # Aisly Backend — Cadastro de Listas (Tema 3)
 
+Pós-Graduação em Desenvolvimento de Aplicativos Móveis da PUC-PR  
+Disciplina: Serviços Mobile em Cloud AWS (Turma U)  
+Professor: Vinícius Godoy Mendonça  
+Aluno: Levi Lunique Izidio da Silva
+
 Servidor de cadastro de **listas de compras** em Kotlin + Spring Boot, com
 login delegado ao **AuthServer** da disciplina. É o backend do
 [Aisly](https://github.com/LeviLunique/Aisly), um app iOS real de listas de
