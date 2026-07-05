@@ -76,8 +76,8 @@ jobs:
           DB_URL: jdbc:postgresql://localhost:5432/aisly
           DB_USER: aisly
           DB_PASSWORD: aisly
-          AUTH_ISSUER_URI: https://issuer.invalid
-          AUTH_AUDIENCE: aisly-api
+          AISLY_SECURITY_HMAC_SECRET: test-hmac-secret-not-for-shared-environments-0000000000
+          AISLY_INTERNAL_WEBHOOK_SECRET: test-secret
       - uses: actions/upload-artifact@v4
         with:
           name: aisly-backend-${{ needs.validate-version.outputs.version }}
@@ -88,7 +88,9 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     needs: [validate-version, build-test]
-    if: github.event_name == 'pull_request' && needs.validate-version.outputs.deploy_environment != 'none'
+    # Deploy only on merged/pushed code — PRs run build-test but must never
+    # touch an environment before review.
+    if: github.event_name == 'push' && needs.validate-version.outputs.deploy_environment != 'none'
     environment: ${{ needs.validate-version.outputs.deploy_environment }}
     concurrency:
       group: aisly-${{ needs.validate-version.outputs.deploy_environment }}-deploy

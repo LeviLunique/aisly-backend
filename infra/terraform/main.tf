@@ -48,6 +48,11 @@ resource "random_password" "internal_webhook_secret" {
   override_special = "_-"
 }
 
+resource "random_password" "jwt_hmac_secret" {
+  length  = 64
+  special = false
+}
+
 resource "aws_sns_topic" "billing_alerts" {
   name = "${var.project}-${var.environment}-billing-alerts"
 }
@@ -76,50 +81,6 @@ resource "aws_cloudwatch_metric_alarm" "estimated_charges" {
   }
 }
 
-resource "aws_ecr_repository" "api" {
-  name                 = "${var.project}-backend"
-  image_tag_mutability = "IMMUTABLE"
-
-  image_scanning_configuration {
-    scan_on_push = true
-  }
-}
-
-resource "aws_sqs_queue" "account_deleted" {
-  name                      = "${var.project}-${var.environment}-account-deleted"
-  message_retention_seconds = 1209600
-}
-
-resource "aws_sns_topic" "account_events" {
-  name = "${var.project}-${var.environment}-account-events"
-}
-
-resource "aws_sns_topic_subscription" "account_deleted_queue" {
-  topic_arn = aws_sns_topic.account_events.arn
-  protocol  = "sqs"
-  endpoint  = aws_sqs_queue.account_deleted.arn
-}
-
-resource "aws_sqs_queue_policy" "account_deleted" {
-  queue_url = aws_sqs_queue.account_deleted.id
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect    = "Allow"
-        Principal = { Service = "sns.amazonaws.com" }
-        Action    = "sqs:SendMessage"
-        Resource  = aws_sqs_queue.account_deleted.arn
-        Condition = {
-          ArnEquals = {
-            "aws:SourceArn" = aws_sns_topic.account_events.arn
-          }
-        }
-      }
-    ]
-  })
-}
-
 resource "aws_security_group" "app" {
   name        = "${var.project}-${var.environment}-app"
   description = "Aisly ${var.environment} single-node application"
@@ -130,7 +91,7 @@ resource "aws_security_group" "app" {
     from_port   = 8081
     to_port     = 8081
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = var.allowed_ingress_cidr_blocks
   }
 
   ingress {
@@ -138,7 +99,7 @@ resource "aws_security_group" "app" {
     from_port   = 8080
     to_port     = 8080
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = var.allowed_ingress_cidr_blocks
   }
 
   egress {
@@ -199,6 +160,9 @@ resource "aws_s3_bucket" "deploy" {
   bucket = "${var.project}-${var.environment}-deploy-${data.aws_caller_identity.current.account_id}-${var.aws_region}"
 }
 
+
+
+
 resource "aws_s3_bucket_versioning" "deploy" {
   bucket = aws_s3_bucket.deploy.id
   versioning_configuration {
@@ -229,6 +193,11 @@ resource "aws_instance" "app" {
   associate_public_ip_address = true
   user_data_replace_on_change = false
 
+  metadata_options {
+    http_tokens   = "required" # IMDSv2 only — user-data already uses tokens
+    http_endpoint = "enabled"
+  }
+
   root_block_device {
     volume_size           = 16
     volume_type           = "gp3"
@@ -244,10 +213,8 @@ resource "aws_instance" "app" {
     db_name                 = "aisly"
     db_username             = var.db_username
     db_password             = random_password.db_password.result
-    auth_issuer_uri         = var.auth_issuer_uri
-    auth_jwk_set_uri        = var.auth_jwk_set_uri
-    auth_audience           = var.auth_audience
     internal_webhook_secret = random_password.internal_webhook_secret.result
+    jwt_hmac_secret         = random_password.jwt_hmac_secret.result
   })
 
   tags = {
@@ -255,17 +222,9 @@ resource "aws_instance" "app" {
   }
 }
 
-output "ecr_repository_url" {
-  value = aws_ecr_repository.api.repository_url
-}
 
-output "account_events_topic_arn" {
-  value = aws_sns_topic.account_events.arn
-}
 
-output "account_deleted_queue_url" {
-  value = aws_sqs_queue.account_deleted.url
-}
+
 
 output "app_base_url" {
   value = "http://${aws_instance.app.public_dns}:8081"

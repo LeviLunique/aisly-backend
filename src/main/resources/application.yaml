@@ -15,18 +15,6 @@ spring:
       hibernate:
         jdbc:
           time_zone: UTC
-  security:
-    oauth2:
-      resourceserver:
-        jwt:
-          issuer-uri: ${AUTH_ISSUER_URI:http://localhost:8080}
-          jwk-set-uri: ${AUTH_JWK_SET_URI:}
-  modulith:
-    events:
-      jdbc:
-        schema-initialization:
-          enabled: false
-
 server:
   port: ${SERVER_PORT:8081}
   servlet:
@@ -51,7 +39,6 @@ springdoc:
 
 aisly:
   security:
-    issuer-uri: ${AUTH_ISSUER_URI:http://localhost:8080}
-    jwk-set-uri: ${AUTH_JWK_SET_URI:}
-    expected-audience: ${AUTH_AUDIENCE:aisly-api}
-    internal-webhook-secret: ${AISLY_INTERNAL_WEBHOOK_SECRET:change-me-local}
+    hmac-secret: ${AISLY_SECURITY_HMAC_SECRET}
+    issuer: ${AISLY_SECURITY_ISSUER:Aisly AuthServer}
+    internal-webhook-secret: ${AISLY_INTERNAL_WEBHOOK_SECRET}

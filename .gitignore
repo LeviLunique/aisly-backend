@@ -13,10 +13,22 @@ out/
 .env
 .env.*
 !.envrc
+!.env.example
+!.env.aws.example
 
 docs/
-.codex-skills/
-.claude/skills/
 
 logs/
 tmp/
+
+# Prevent accidental nesting of the iOS repository inside the backend repo.
+/Aisly
+
+# Local credentials / certificates
+.aws/
+*.pem
+*.key
+*.p8
+*.p12
+*.jks
+*.keystore

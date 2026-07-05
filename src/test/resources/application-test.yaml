@@ -1,0 +1,19 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:aisly;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1
+    username: sa
+    password: ""
+    driver-class-name: org.h2.Driver
+  flyway:
+    # The Flyway migrations are PostgreSQL-specific; tests run on in-memory H2
+    # with the schema generated from the JPA entities instead.
+    enabled: false
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+
+aisly:
+  security:
+    hmac-secret: test-hmac-secret-not-for-shared-environments-0000000000
+    issuer: Aisly AuthServer
+    internal-webhook-secret: test-secret

@@ -9,3 +9,7 @@ logging:
   level:
     com.aisly.backend: DEBUG
 
+aisly:
+  security:
+    hmac-secret: local-dev-hmac-secret-not-for-shared-environments-000000
+    internal-webhook-secret: local-internal-webhook-secret-not-for-shared-envs
