@@ -10,13 +10,9 @@ login delegado ao **AuthServer** da disciplina. É o backend do
 [Aisly](https://github.com/LeviLunique/Aisly), um app iOS real de listas de
 compras — este servidor sincroniza 100% das funcionalidades do app.
 
-## Integrantes
-
-- Levi Lunique <!-- ajuste nome completo/RA conforme necessário -->
-
 ## Vídeo
 
-📹 **[Link do vídeo de demonstração](COLOQUE_O_LINK_AQUI)** <!-- público ou não listado -->
+📹 **[Link do vídeo de demonstração](COLOQUE_O_LINK_AQUI)**
 
 ---
 
