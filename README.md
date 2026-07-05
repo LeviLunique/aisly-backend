@@ -6,8 +6,8 @@ Professor: Vinícius Godoy Mendonça
 Aluno: Levi Lunique Izidio da Silva
 
 Servidor de cadastro de **listas de compras** em Kotlin + Spring Boot, com
-login delegado ao **AuthServer** da disciplina. É o backend do
-[Aisly](https://github.com/LeviLunique/Aisly), um app iOS real de listas de
+login delegado ao [AuthServer](https://github.com/LeviLunique/aisly-authserver) da disciplina. É o backend do
+[Aisly](https://github.com/LeviLunique/aisly-ios), um app iOS real de listas de
 compras — este servidor sincroniza 100% das funcionalidades do app.
 
 ## Vídeo
